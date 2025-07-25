@@ -388,6 +388,20 @@ void exec_phase(struct phase *phase)
 				((aclk_clock() - start) / cpu_cycle_ms));
 }
 
+static void repeat_data(struct mregion *region, size_t data_filled)
+{
+	size_t to_copy;
+
+	while (data_filled < region->sz) {
+		if (data_filled < region->sz - data_filled)
+			to_copy = data_filled;
+		else
+			to_copy = region->sz - data_filled;
+		memcpy(&region->region[data_filled], region->region, to_copy);
+		data_filled += to_copy;
+	}
+}
+
 static void load_init_data(struct mregion *region)
 {
 	int fd;
@@ -409,6 +423,8 @@ static void load_init_data(struct mregion *region)
 			perror("init data load, read");
 			close(fd);
 			exit(1);
+		} else if (!bytes_read) {
+			break;
 		}
 		if (bytes_read > region->sz - data_filled)
 			bytes_read = region->sz - data_filled;
@@ -416,6 +432,8 @@ static void load_init_data(struct mregion *region)
 		data_filled += bytes_read;
 	}
 	close(fd);
+	if (data_filled < region->sz)
+		repeat_data(region, data_filled);
 }
 
 static void init_region(struct mregion *region)
